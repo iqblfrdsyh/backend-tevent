@@ -1,0 +1,5 @@
+node_modules
+note.txt
+.env 
+public/event/reports/*
+public/event/thumb_event/*
