@@ -2,15 +2,17 @@ const xlsx = require("xlsx");
 const fs = require("fs");
 const path = require("path");
 
-const saveToExcelByEvent = (eventId, registration, user, event) => {
+const saveToExcelByEvent = (order, user, event, ticket) => {
   const dirPath = path.join(__dirname, "../public/event/reports");
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
 
-  const filePath = path.join(dirPath, `event-${eventId}.xlsx`);
+  const filePath = path.join(dirPath, `event-${event.name}.xlsx`);
   let workbook;
-  let sheetName = `Registration Report for ${event.title}`;
+  
+  let sheetName = `Order-${event.name}`.substring(0, 31).replace(/[\[\]:\*\?\/\\]/g, "");
+
   let worksheet;
 
   if (fs.existsSync(filePath)) {
@@ -24,27 +26,22 @@ const saveToExcelByEvent = (eventId, registration, user, event) => {
 
   let data = xlsx.utils.sheet_to_json(worksheet);
 
-  const existingIndex = data.findIndex((row) => row.ID === registration.id);
+  const existingIndex = data.findIndex((row) => row.ID === order.id);
 
   const newData = {
-    ID: registration.id,
+    ID: order.id,
     "Nama Lengkap": user.fullname,
     Mahasiswa: user.isMahasiswa ? "Ya" : "Tidak",
     NIM: user.nim || "-",
     Email: user.email,
     "Nomor HP": user.nohandphone,
-    "Nama Event": event.title,
-    Kehadiran: registration.presence,
-    "Harga (IDR)": `Rp ${event.price.toLocaleString("id-ID")}`,
-    "Status Pembayaran":
-      registration.statusPayment === "paid" ? "Lunas" : "Belum Lunas",
-    "Waktu Registrasi": new Date(registration.createdAt).toLocaleString(
-      "id-ID",
-      {
-        timeZone: "Asia/Jakarta",
-        hour12: false,
-      }
-    ),
+    "Nama Event": event.name,
+    "Harga (IDR)": `Rp ${ticket.price.toLocaleString("id-ID")}`,
+    "Status Pembayaran": order.statusPayment === "paid" ? "Lunas" : "Belum Lunas",
+    "Waktu Registrasi": new Date(order.createdAt).toLocaleString("id-ID", {
+      timeZone: "Asia/Jakarta",
+      hour12: false,
+    }),
   };
 
   if (existingIndex !== -1) {
@@ -53,24 +50,11 @@ const saveToExcelByEvent = (eventId, registration, user, event) => {
     data.push(newData);
   }
 
-  data.sort(
-    (a, b) => new Date(a["Waktu Registrasi"]) - new Date(b["Waktu Registrasi"])
-  );
+  data.sort((a, b) => new Date(a["Waktu Registrasi"]) - new Date(b["Waktu Registrasi"]));
 
   const newWorksheet = xlsx.utils.json_to_sheet(data, {
     header: Object.keys(newData),
   });
-
-  const range = xlsx.utils.decode_range(newWorksheet["!ref"]);
-  for (let C = range.s.c; C <= range.e.c; C++) {
-    const cell_address = xlsx.utils.encode_col(C) + "1";
-    if (newWorksheet[cell_address]) {
-      newWorksheet[cell_address].s = {
-        font: { bold: true, name: "Arial" },
-        alignment: { horizontal: "center" },
-      };
-    }
-  }
 
   newWorksheet["!cols"] = [
     { wch: 10 }, // ID
@@ -80,14 +64,12 @@ const saveToExcelByEvent = (eventId, registration, user, event) => {
     { wch: 25 }, // Email
     { wch: 15 }, // Nomor HP
     { wch: 25 }, // Nama Event
-    { wch: 12 }, // Kehadiran
-    { wch: 15 }, // Harga (IDR)
+    { wch: 15 }, // Harga 
     { wch: 18 }, // Status Pembayaran
     { wch: 20 }, // Waktu Registrasi
   ];
 
   workbook.Sheets[sheetName] = newWorksheet;
-
   xlsx.writeFile(workbook, filePath);
 };
 

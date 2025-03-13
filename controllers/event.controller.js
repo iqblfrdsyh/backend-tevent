@@ -1,7 +1,7 @@
 const { deleteFile } = require("../helper/deleteFile");
 const { handleError, trimmedValue } = require("../helper/function");
 const generateUniqID = require("../helper/generateId");
-const { Event, User, Category } = require("../helper/ralation");
+const { Event, User, Category, Ticket } = require("../helper/ralation");
 
 exports.getEvent = async (req, res) => {
   try {
@@ -16,6 +16,11 @@ exports.getEvent = async (req, res) => {
           model: Category,
           as: "category",
           attributes: ["id", "name"],
+        },
+        {
+          model: Ticket,
+          as: "tickets",
+          attributes: ["id", "name", "price", "quantity"],
         },
       ],
     });
@@ -95,16 +100,14 @@ exports.searchEventByCategory = async (req, res) => {
 exports.createEvent = async (req, res) => {
   try {
     const {
-      title,
+      name,
       description,
       date_start,
       date_end,
-      time_start,
-      time_end,
       location,
-      eventType,
-      isFree,
-      price,
+      isOnline,
+      isPublish,
+      isFeatured,
       categoryId,
       organizerId,
     } = req.body;
@@ -112,16 +115,14 @@ exports.createEvent = async (req, res) => {
 
     if (
       ![
-        title,
+        name,
         description,
         date_start,
         date_end,
-        time_start,
-        time_end,
         location,
-        eventType,
-        isFree,
-        price,
+        isOnline,
+        isPublish,
+        isFeatured,
         categoryId,
         organizerId,
       ].every(trimmedValue)
@@ -159,7 +160,7 @@ exports.createEvent = async (req, res) => {
         `Tidak ada organizer dengan ID '${organizerId}'`
       );
     }
-    if (organizer.role == "participant") {
+    if (organizer.role == "user") {
       deleteFile(thumbnailUrl);
       return handleError(res, 400, "Ilegal role");
     }
@@ -167,16 +168,14 @@ exports.createEvent = async (req, res) => {
     const event = await Event.create({
       id: generateUniqID("eid"),
       thumbnail: thumbnailUrl,
-      title,
+      name,
       description,
       date_start,
       date_end,
-      time_start,
-      time_end,
       location,
-      eventType,
-      isFree: isFree || false,
-      price: parseInt(price),
+      isOnline: isOnline || false,
+      isPublish: isPublish || false,
+      isFeatured: isFeatured || false,
       categoryId,
       organizerId,
     });

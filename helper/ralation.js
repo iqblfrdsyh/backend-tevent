@@ -4,7 +4,8 @@ const { DataTypes } = require("sequelize");
 const User = require("../models/user.js")(sequelize, DataTypes);
 const Category = require("../models/category.js")(sequelize, DataTypes);
 const Event = require("../models/event.js")(sequelize, DataTypes);
-const Registration = require("../models/registration.js")(sequelize, DataTypes);
+const Order = require("../models/order.js")(sequelize, DataTypes);
+const Ticket = require("../models/ticket.js")(sequelize, DataTypes);
 
 User.hasMany(Event, {
   foreignKey: "organizerId",
@@ -30,25 +31,35 @@ Category.hasOne(Event, {
   onDelete: "CASCADE",
 });
 
-Event.hasMany(Registration, {
+Event.hasMany(Order, {
   foreignKey: "eventId",
-  as: "registrations",
+  as: "orders",
   onDelete: "CASCADE",
 });
-Registration.belongsTo(Event, {
+Order.belongsTo(Event, {
   foreignKey: "eventId",
   as: "event",
 });
 
-User.hasMany(Registration, {
+User.hasMany(Order, {
   foreignKey: "userId",
-  as: "registrations",
+  as: "orders",
   onDelete: "CASCADE",
 });
-Registration.belongsTo(User, {
+Order.belongsTo(User, {
   foreignKey: "userId",
   as: "participant",
 });
 
+Ticket.belongsTo(Event, {
+  foreignKey: "eventId",
+  as: "event",
+  onDelete: "CASCADE",
+});
+Event.hasMany(Ticket, {
+  foreignKey: "eventId",
+  as: "tickets",
+  onDelete: "CASCADE",
+});
 
-module.exports = { User, Category, Event, Registration };
+module.exports = { User, Category, Event, Order, Ticket };

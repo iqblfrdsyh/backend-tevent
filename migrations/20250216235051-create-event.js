@@ -9,7 +9,7 @@ module.exports = {
         unique: true,
         type: Sequelize.STRING,
       },
-      title: {
+      name: {
         type: Sequelize.STRING,
       },
       description: {
@@ -19,31 +19,25 @@ module.exports = {
         type: Sequelize.STRING,
       },
       date_start: {
-        type: Sequelize.DATEONLY,
+        type: Sequelize.DATE,
       },
       date_end: {
-        type: Sequelize.DATEONLY,
-      },
-      time_start: {
-        type: Sequelize.STRING,
-      },
-      time_end: {
-        type: Sequelize.STRING,
+        type: Sequelize.DATE,
       },
       location: {
         type: Sequelize.STRING,
       },
-      eventType: {
-        type: Sequelize.ENUM("online", "offline"),
-        defaultValue: "online",
-      },
-      isFree: {
+      isOnline: {
         type: Sequelize.BOOLEAN,
         defaultValue: false,
       },
-      price: {
-        type: Sequelize.FLOAT,
-        defaultValue: 0,
+      isPublish: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false,
+      },
+      isFeatured: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false,
       },
       categoryId: {
         type: Sequelize.STRING,

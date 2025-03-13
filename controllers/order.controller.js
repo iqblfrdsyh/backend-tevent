@@ -1,6 +1,6 @@
 const { handleError } = require("../helper/function");
 const generateUniqID = require("../helper/generateId");
-const { Registration, User, Event } = require("../helper/ralation");
+const { User, Event, Ticket, Order } = require("../helper/ralation");
 const midtransClient = require("midtrans-client");
 const saveToExcelByEvent = require("../helper/saveToExcel");
 
@@ -10,58 +10,54 @@ const midtrans = new midtransClient.Snap({
   clientKey: process.env.CLIENT_KEY,
 });
 
-exports.createRegistration = async (req, res) => {
+exports.createOrder = async (req, res) => {
   try {
-    const { presence, userId, eventId } = req.body;
+    const { userId, eventId, ticketId } = req.body;
 
-    if (!presence || !userId || !eventId) {
+    if (!userId || !eventId || !ticketId) {
       return handleError(res, 400, "Semua field harus diisi.");
     }
 
-    // const existingRegistration = await Registration.findOne({
-    //   where: { userId, eventId },
-    // });
-    // if (existingRegistration) {
-    //   return handleError(res, 400, "User sudah terdaftar untuk event ini.");
-    // }
-
-    const [user, event] = await Promise.all([
+    const [user, ticket, event] = await Promise.all([
       User.findOne({ where: { id: userId } }),
+      Ticket.findOne({ where: { id: ticketId } }),
       Event.findOne({ where: { id: eventId } }),
     ]);
 
-    if (!user) return handleError(req, 404, "User tidak ditemukan");
-    if (!event) return handleError(req, 404, "Event tidak ditemukan");
+    if (!user) return handleError(res, 404, "User tidak ditemukan");
+    if (!ticket) return handleError(res, 404, "Ticket tidak ditemukan");
+    if (!event) return handleError(res, 404, "Event tidak ditemukan");
 
-    const registrationId = generateUniqID("reg");
+    const orderId = generateUniqID("reg");
 
-    if (event.isFree) {
-      const newRegistration = await Registration.create({
-        id: registrationId,
+    if (ticket.price === 0) {
+      const newOrder = await Registration.create({
+        id: orderId,
         presence,
         statusPayment: "paid",
         userId,
         eventId,
+        ticketId,
       });
 
-      saveToExcelByEvent(eventId, newRegistration, user, event);
+      saveToExcelByEvent(eventId, newOrder, user, event, ticket);
 
       return res.status(201).json({
         message: "Registrasi berhasil",
-        data: newRegistration,
+        data: newOrder,
       });
     }
 
     const parameter = {
       transaction_details: {
-        order_id: registrationId,
-        gross_amount: event.price * 1,
+        order_id: orderId,
+        gross_amount: ticket.price,
       },
       item_details: [
         {
-          id: eventId,
-          name: event.title,
-          price: event.price,
+          id: ticketId,
+          name: ticket.name,
+          price: ticket.price,
           quantity: 1,
         },
       ],
@@ -74,19 +70,25 @@ exports.createRegistration = async (req, res) => {
 
     const token = await midtrans.createTransactionToken(parameter);
 
-    const newRegistration = await Registration.create({
-      id: registrationId,
-      presence,
+    const newOrder = await Order.create({
+      id: orderId,
       statusPayment: "pending",
       userId,
       eventId,
+      ticketId,
     });
 
-    saveToExcelByEvent(eventId, newRegistration, user, event);
+    saveToExcelByEvent(newOrder, user, event, ticket);
+
+    const ticketData = await Ticket.findOne({ where: { id: ticketId } });
+    if (ticketData) {
+      const ticketQuantity = parseInt(ticketData.quantity) - 1;
+      await ticketData.update({ quantity: ticketQuantity });
+    }
 
     return res.status(201).json({
-      message: "Registrasi berhasil",
-      data: newRegistration,
+      message: "Order berhasil",
+      data: newOrder,
       token,
     });
   } catch (error) {
@@ -99,14 +101,14 @@ exports.midtransWebHook = async (req, res) => {
     const { orderId } = req.query;
 
     const statusResponse = await midtrans.transaction.status(orderId);
-
     const { transaction_status, fraud_status } = statusResponse;
-    const registration = await Registration.findOne({ where: { id: orderId } });
-    if (!registration)
+
+    const order = await Order.findOne({ where: { id: orderId } });
+    if (!order)
       return handleError(
         res,
         404,
-        `Registrasi dengan id ${orderId} tidak di temukan`
+        `Data Order dengan id ${orderId} tidak ditemukan`
       );
 
     let newStatus;
@@ -116,26 +118,34 @@ exports.midtransWebHook = async (req, res) => {
       newStatus = "paid";
     } else if (["cancel", "deny", "expire"].includes(transaction_status)) {
       newStatus = "failed";
+      const ticket = await Ticket.findOne({
+        where: { ticketId: order.ticketId },
+      });
+      if (ticket) {
+        const ticketQuantity = parseInt(ticket.quantity) + 1;
+        await ticket.update({ quantity: ticketQuantity });
+      }
     } else if (transaction_status === "pending") {
       newStatus = "pending";
     } else {
-      newStatus = registration.statusPayment;
+      newStatus = order.statusPayment;
     }
 
-    await registration.update({
+    await order.update({
       statusPayment: newStatus,
     });
 
-    const [user, event] = await Promise.all([
-      User.findOne({ where: { id: registration.userId } }),
-      Event.findOne({ where: { id: registration.eventId } }),
+    const [user, event, ticket] = await Promise.all([
+      User.findOne({ where: { id: order.userId } }),
+      Event.findOne({ where: { eventId: order.eventId } }),
+      Ticket.findOne({ where: { ticketId: order.ticketId } }),
     ]);
 
     if (user && event) {
-      saveToExcelByEvent(registration.eventId, registration, user, event);
+      saveToExcelByEvent(order, user, event, ticket);
     }
 
-    res.status(200).json({ message: "Ok", data: registration });
+    res.status(200).json({ message: "Ok", data: order });
   } catch (error) {
     return handleError(res, 500, error.message);
   }

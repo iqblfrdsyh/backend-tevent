@@ -62,7 +62,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.BOOLEAN,
       },
       role: {
-        type: DataTypes.ENUM("organizer", "participant"),
+        type: DataTypes.ENUM("organizer", "user"),
       },
       refreshToken: DataTypes.TEXT,
     },

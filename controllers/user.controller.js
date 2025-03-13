@@ -40,7 +40,6 @@ exports.registerUser = async (req, res) => {
         confirmPassword,
         email,
         nohandphone,
-        isMahasiswa,
         role,
       ].every(trimmedValue)
     ) {
@@ -81,7 +80,7 @@ exports.registerUser = async (req, res) => {
       password: hashedPassword,
       email,
       nohandphone,
-      nim,
+      nim: nim || 0,
       isMahasiswa: isMahasiswa || false,
       role: role || "participant",
     });

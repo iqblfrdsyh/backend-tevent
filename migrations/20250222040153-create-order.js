@@ -2,16 +2,12 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable("Registrations", {
+    await queryInterface.createTable("Orders", {
       id: {
         allowNull: false,
         primaryKey: true,
         unique: true,
         type: Sequelize.STRING,
-      },
-      presence: {
-        type: Sequelize.ENUM("online", "offline"),
-        defaultValue: "offline",
       },
       statusPayment: {
         type: Sequelize.ENUM("pending", "paid", "failed"),
@@ -21,6 +17,9 @@ module.exports = {
         type: Sequelize.STRING,
       },
       eventId: {
+        type: Sequelize.STRING,
+      },
+      ticketId: {
         type: Sequelize.STRING,
       },
       createdAt: {
@@ -34,6 +33,6 @@ module.exports = {
     });
   },
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable("Registrations");
+    await queryInterface.dropTable("Orders");
   },
 };
